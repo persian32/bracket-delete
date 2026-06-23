@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부호 제거기 · 생기부 도우미</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  :root{
+    --paper:#FCFCFA;
+    --ink:#23282E;
+    --muted:#6E7378;
+    --line:#E6E3DA;
+    --grid:#CBD9CB;        /* 원고지 칸 선 (연한 녹) */
+    --accent:#2E6B4F;      /* 원고지 녹 (진하게) — 안전/완료/주동작 */
+    --accent-soft:#EAF2EC;
+    --accent-ink:#21503B;
+    --warn:#B45309;
+    --warn-soft:#FBF1E4;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","맑은 고딕","Malgun Gothic",sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    display:flex;
+    justify-content:center;
+    padding:32px 18px 64px;
+    min-height:100vh;
+  }
+  .wrap{width:100%;max-width:640px;}
+
+  .eyebrow{
+    font-size:13px;letter-spacing:.14em;color:var(--accent);
+    font-weight:700;text-transform:none;margin-bottom:10px;
+  }
+  h1{
+    font-family:"Noto Serif KR","Pretendard",serif;
+    font-weight:700;font-size:38px;line-height:1.15;margin:0 0 12px;
+    letter-spacing:-.01em;
+  }
+  .lede{font-size:16px;color:var(--muted);margin:0 0 26px;max-width:48ch;}
+  .lede b{color:var(--ink);font-weight:600;}
+
+  /* 처리 위치 안내(시그니처 안심 배지) */
+  .privacy{
+    display:flex;gap:12px;align-items:flex-start;
+    background:var(--accent-soft);
+    border:1px solid #D4E5D9;
+    color:var(--accent-ink);
+    border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:24px;font-size:14px;
+  }
+  .privacy svg{flex:0 0 auto;margin-top:1px;}
+  .privacy b{font-weight:700;}
+
+  /* 미리보기 칩: 무엇을 하는 도구인지 한눈에 */
+  .demo{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    font-size:13.5px;color:var(--muted);margin-bottom:22px;
+  }
+  .chip{
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:7px 11px;font-size:13px;color:var(--ink);
+  }
+  .chip .cut{color:#B0453A;text-decoration:line-through;opacity:.7;}
+  .chip .q{color:#B0453A;font-weight:700;}
+  .arrow{color:var(--accent);font-weight:700;}
+
+  /* 드롭존 — 원고지 칸 배경 */
+  .drop{
+    position:relative;border:2px dashed #C6CFC6;border-radius:var(--radius);
+    padding:42px 24px;text-align:center;cursor:pointer;
+    background-color:#fff;
+    background-image:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;background-position:center;
+    transition:border-color .18s ease, background-color .18s ease, transform .18s ease;
+  }
+  .drop:hover{border-color:var(--accent);}
+  .drop.drag{border-color:var(--accent);background-color:var(--accent-soft);transform:scale(1.006);}
+  .drop .big{font-size:17px;font-weight:600;margin:0 0 4px;}
+  .drop .sub{font-size:13.5px;color:var(--muted);margin:0;}
+  .drop .pick{
+    display:inline-block;margin-top:16px;background:var(--accent);color:#fff;
+    border:none;border-radius:10px;padding:11px 20px;font-size:15px;font-weight:600;
+    font-family:inherit;cursor:pointer;
+  }
+  .drop .pick:hover{background:#27593F;}
+  .drop .note{margin-top:14px;font-size:12.5px;color:var(--muted);}
+  input[type=file]{display:none;}
+
+  /* 고급: 열 이름 직접 지정 */
+  details.adv{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;}
+  details.adv summary{cursor:pointer;font-size:13.5px;color:var(--accent);font-weight:600;list-style:none;}
+  details.adv summary::-webkit-details-marker{display:none;}
+  details.adv summary::before{content:"▸ ";}
+  details.adv[open] summary::before{content:"▾ ";}
+  .fields{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;}
+  .field{flex:1 1 200px;}
+  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;}
+  .field input{
+    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+    font-family:inherit;font-size:14px;color:var(--ink);background:#fff;
+  }
+  .field input:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
+
+  /* 결과 영역 */
+  .result{margin-top:24px;display:none;}
+  .result.show{display:block;animation:rise .3s ease;}
+  @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .card{border:1px solid var(--line);border-radius:var(--radius);padding:20px;background:#fff;}
+  .card.ok{border-color:#CFE3D6;background:#FAFDFB;}
+  .card.warn{border-color:#EAD7B6;background:var(--warn-soft);}
+  .card .top{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;margin-bottom:6px;}
+  .card.ok .top{color:var(--accent-ink);}
+  .card.warn .top{color:var(--warn);}
+  .card p{margin:6px 0;font-size:14px;color:var(--ink);}
+  .card .meta{color:var(--muted);font-size:13.5px;}
+  .download{
+    display:inline-block;margin-top:14px;background:var(--accent);color:#fff;text-decoration:none;
+    border:none;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:600;
+    font-family:inherit;cursor:pointer;
+  }
+  .download:hover{background:#27593F;}
+  .reset{
+    display:inline-block;margin-top:14px;margin-left:10px;background:transparent;color:var(--muted);
+    border:1px solid var(--line);border-radius:10px;padding:12px 18px;font-size:14px;
+    font-family:inherit;cursor:pointer;
+  }
+  .reset:hover{color:var(--ink);border-color:var(--muted);}
+
+  footer{margin-top:34px;font-size:12.5px;color:var(--muted);line-height:1.7;}
+  footer b{color:var(--ink);font-weight:600;}
+
+  @media (max-width:480px){
+    h1{font-size:30px;}
+    .drop{padding:32px 16px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">생기부 작성 도우미</div>
+  <h1>부호 제거기</h1>
+  <p class="lede">학생 활동 엑셀에서 모든 학생에게 공통으로 붙는 <b>꺾쇠 ＜ ＞ 안내문구를 지우고</b>, 글 속의 <b>모든 따옴표를 작은따옴표( ' )로 통일</b>합니다. 그 밖의 글자·띄어쓰기·문장은 건드리지 않아요.</p>
+
+  <div class="privacy">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+    <div><b>파일은 이 브라우저 안에서만 처리됩니다.</b> 어떤 서버로도 전송되거나 저장되지 않아요. 창을 닫으면 아무것도 남지 않습니다.</div>
+  </div>
+
+  <div class="demo">
+    <span class="chip"><span class="cut">＜선정 이유를 쓰시오＞</span> <span class="q">&ldquo;</span>침묵의 봄<span class="q">&rdquo;</span>을 읽고…</span>
+    <span class="arrow">→</span>
+    <span class="chip">'침묵의 봄'을 읽고…</span>
+  </div>
+
+  <div class="drop" id="drop">
+    <p class="big">엑셀 파일을 여기에 끌어다 놓으세요</p>
+    <p class="sub">또는 아래 버튼으로 선택</p>
+    <button class="pick" id="pickBtn" type="button">파일 선택</button>
+    <p class="note">.xlsx 파일 · <b>'이름'</b> 열과 <b>'글내용(통합)'</b> 열이 있는 형식</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+    <details class="adv" id="adv">
+      <summary>열 이름이 다르면 직접 지정</summary>
+      <div class="fields">
+        <div class="field">
+          <label for="nameCol">이름 열</label>
+          <input type="text" id="nameCol" value="이름">
+        </div>
+        <div class="field">
+          <label for="contentCol">글내용 열</label>
+          <input type="text" id="contentCol" value="글내용(통합)">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <footer>
+    처리는 전부 이 브라우저(자바스크립트) 안에서 이뤄집니다. <b>새로고침하면 올린 파일은 사라집니다.</b><br>
+    전각 ＜ ＞ 과 반각 &lt; &gt; 블록을 제거하고, 큰따옴표 &ldquo; &rdquo; · 작은따옴표 &lsquo; &rsquo; · 낫표 「 」 『 』 · 화살괄호 〈 〉 《 》 등 모든 따옴표류를 작은따옴표 ( ' ) 로 통일합니다. 그 외 글자·맞춤법·문장은 손대지 않습니다.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  // strip_guides.py 의 GUIDE_PAT = [＜<][^＜<＞>]*[＞>] 와 동일
+  var GUIDE_PAT = /[＜<][^＜<＞>]*[＞>]/g;
+
+  // 모든 따옴표류 → 곧은 작은따옴표(') 로 통일
+  //  큰따옴표(곧은/둥근/전각), 작은따옴표(둥근/전각), 낫표「」『』, 화살괄호〈〉《》 포함
+  var QUOTE_PAT = /[\u0022\u201C\u201D\u201E\u201F\u301D\u301E\uFF02\u2018\u2019\u201A\u201B\uFF07\u300C\u300D\u300E\u300F\u3008\u3009\u300A\u300B]/g;
+  function normalizeQuotes(s){ return String(s).replace(QUOTE_PAT, "'"); }
+
+  var drop = document.getElementById('drop');
+  var fileInput = document.getElementById('fileInput');
+  var pickBtn = document.getElementById('pickBtn');
+  var result = document.getElementById('result');
+
+  pickBtn.addEventListener('click', function(e){ e.stopPropagation(); fileInput.click(); });
+  drop.addEventListener('click', function(e){
+    // 고급 설정 영역 클릭은 통과
+    if (e.target.closest('details')) return;
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', function(){
+    if (fileInput.files.length) handle(fileInput.files[0]);
+  });
+
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('drag'); });
+  });
+  drop.addEventListener('drop', function(e){
+    if (e.dataTransfer.files.length) handle(e.dataTransfer.files[0]);
+  });
+
+  function stripGuides(content){
+    var cleaned = String(content).replace(GUIDE_PAT, '');
+    var lines = cleaned.split(/\r\n|\r|\n/);
+    lines = lines.filter(function(ln){ return ln.trim() !== ''; }); // 빈 줄(안내문구만 있던 줄) 제거
+    return lines.join('\n');
+  }
+
+  function findCol(header, target){
+    target = String(target).trim();
+    for (var c = 0; c < header.length; c++){
+      var v = header[c];
+      if (v === null || v === undefined) continue;
+      var s = String(v).trim();
+      if (s === target || s.indexOf(target) !== -1) return c;
+    }
+    return -1;
+  }
+
+  function estimateRowHeight(text){
+    // 열 너비(약 47자) 기준으로 줄 수를 어림잡아 행 높이를 정한다(가독성용)
+    var per = 47, lines = 0;
+    String(text).split('\n').forEach(function(ln){
+      lines += Math.max(1, Math.ceil(ln.length / per));
+    });
+    return Math.min(400, Math.max(30, lines * 15));
+  }
+
+  function handle(file){
+    showInfo('파일을 읽는 중입니다…', 'ok');
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try { process(e.target.result, file.name); }
+      catch (err){ showInfo('파일을 처리하지 못했습니다. .xlsx 엑셀 파일이 맞는지 확인해 주세요.', 'warn'); }
+    };
+    reader.onerror = function(){ showInfo('파일을 읽지 못했습니다. 다시 시도해 주세요.', 'warn'); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function process(buf, fileName){
+    var nameTarget = (document.getElementById('nameCol').value || '이름').trim();
+    var contentTarget = (document.getElementById('contentCol').value || '글내용(통합)').trim();
+
+    var wb = XLSX.read(new Uint8Array(buf), {type:'array'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var data = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:null});
+    if (!data.length){ showInfo('빈 엑셀이에요. 내용이 있는 파일을 올려 주세요.', 'warn'); return; }
+
+    var header = data[0] || [];
+    var nameIdx = findCol(header, nameTarget);
+    var contentIdx = findCol(header, contentTarget);
+
+    if (nameIdx === -1 || contentIdx === -1){
+      var found = header.filter(function(h){ return h!==null && String(h).trim()!==''; })
+                        .map(function(h){ return "'"+String(h).trim()+"'"; }).join(', ');
+      showColumnError(nameTarget, contentTarget, nameIdx!==-1, contentIdx!==-1, found);
+      return;
+    }
+
+    var rows = [], totalGuides = 0;
+    for (var r = 1; r < data.length; r++){
+      var name = data[r][nameIdx];
+      var content = data[r][contentIdx];
+      if (!name || content === null || content === undefined) continue;
+      content = String(content);
+      var matches = content.match(GUIDE_PAT);
+      var n = matches ? matches.length : 0;
+      totalGuides += n;
+      rows.push({ name:String(name).trim(), text:normalizeQuotes(stripGuides(content)), removed:n });
+    }
+
+    if (!rows.length){ showInfo("처리할 학생 행을 찾지 못했어요. '이름'과 '글내용' 열에 값이 있는지 확인해 주세요.", 'warn'); return; }
+
+    var outName = fileName.replace(/\.(xlsx|xls)$/i, '') + '_부호정리.xlsx';
+    buildWorkbook(rows, outName);
+    showResult(rows, totalGuides, outName);
+  }
+
+  function buildWorkbook(rows, outName){
+    var aoa = [['순번','이름','부호 제거·따옴표 통일본','제거된 부호블록수']];
+    rows.forEach(function(r, i){ aoa.push([i+1, r.name, r.text, r.removed]); });
+
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:6},{wch:10},{wch:95},{wch:14}];
+    ws['!rows'] = [{hpt:24}];
+    rows.forEach(function(r){ ws['!rows'].push({hpt: estimateRowHeight(r.text)}); });
+    ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2'};
+
+    var thin = {style:'thin', color:{rgb:'CCCCCC'}};
+    var border = {top:thin,bottom:thin,left:thin,right:thin};
+    var headStyle = {
+      fill:{patternType:'solid', fgColor:{rgb:'548235'}},
+      font:{bold:true, color:{rgb:'FFFFFF'}, sz:11},
+      alignment:{horizontal:'center', vertical:'center'},
+      border:border
+    };
+    var range = XLSX.utils.decode_range(ws['!ref']);
+    for (var R = range.s.r; R <= range.e.r; R++){
+      for (var C = range.s.c; C <= range.e.c; C++){
+        var addr = XLSX.utils.encode_cell({r:R,c:C});
+        if (!ws[addr]) ws[addr] = {t:'s', v:''};
+        if (R === 0){ ws[addr].s = headStyle; continue; }
+        if (C === 2){ ws[addr].s = {alignment:{wrapText:true, vertical:'top'}, border:border}; }
+        else { ws[addr].s = {alignment:{horizontal:'center', vertical:'top'}, border:border}; }
+      }
+    }
+
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '부호제거원본');
+    XLSX.writeFile(wb, outName);
+  }
+
+  // ---- 화면 표시 ----
+  function showInfo(msg, kind){
+    result.className = 'result show';
+    result.innerHTML = '<div class="card '+kind+'"><p>'+msg+'</p></div>';
+  }
+
+  function showResult(rows, totalGuides, outName){
+    var counts = {};
+    rows.forEach(function(r){ counts[r.removed] = (counts[r.removed]||0)+1; });
+    var distinct = Object.keys(counts).map(Number).sort(function(a,b){return a-b;});
+    var inconsistent = distinct.length > 1 || distinct.indexOf(0) !== -1;
+
+    var kind = inconsistent ? 'warn' : 'ok';
+    var icon = inconsistent ? '⚠' : '✓';
+    var title = inconsistent ? '완료 — 다만 한 번 확인해 보세요' : '완료되었어요';
+
+    var html = '<div class="card '+kind+'">';
+    html += '<div class="top">'+icon+' '+title+'</div>';
+    html += '<p>학생 <b>'+rows.length+'명</b> 처리 · 지운 안내문구(부호 블록) 총 <b>'+totalGuides+'개</b></p>';
+
+    if (inconsistent){
+      html += '<p class="meta">학생마다 지워진 부호 개수가 다릅니다 (개수 종류: '+distinct.join(', ')+'). ';
+      html += '보통은 모든 학생이 같아야 정상이에요. <b>0개</b>가 섞여 있으면 꺾쇠 종류가 다르거나 그 학생 칸이 비어 있을 수 있으니, 받은 파일에서 한 번 살펴봐 주세요.</p>';
+    } else {
+      html += '<p class="meta">모든 학생에게서 같은 수('+distinct[0]+'개)의 안내문구를 지웠어요. 정상입니다.</p>';
+    }
+
+    html += '<div><button class="download" id="dlAgain">다시 내려받기</button>';
+    html += '<button class="reset" id="resetBtn">다른 파일 올리기</button></div>';
+    html += '</div>';
+    result.className = 'result show';
+    result.innerHTML = html;
+
+    // 파일은 이미 자동 다운로드됨. 버튼은 재다운로드/초기화용.
+    document.getElementById('dlAgain').addEventListener('click', function(){
+      // 재처리 없이 다시 받으려면 마지막 입력을 다시 돌려야 하므로, 간단히 파일 다시 선택 안내
+      fileInput.click();
+    });
+    document.getElementById('resetBtn').addEventListener('click', function(){
+      fileInput.value = '';
+      result.className = 'result';
+      result.innerHTML = '';
+    });
+  }
+
+  function showColumnError(nameT, contentT, nameOk, contentOk, found){
+    var miss = [];
+    if (!nameOk) miss.push("'"+nameT+"'(이름 열)");
+    if (!contentOk) miss.push("'"+contentT+"'(글내용 열)");
+    var html = '<div class="card warn">';
+    html += '<div class="top">⚠ 열을 찾지 못했어요</div>';
+    html += '<p>'+miss.join(' 와 ')+' 을(를) 찾지 못했습니다.</p>';
+    html += '<p class="meta">이 엑셀의 열 이름: '+(found || '(머리글이 비어 있음)')+'</p>';
+    html += '<p>위 <b>"열 이름이 다르면 직접 지정"</b>을 펼쳐 실제 열 이름을 입력한 뒤 다시 올려 주세요.</p>';
+    html += '</div>';
+    result.className = 'result show';
+    result.innerHTML = html;
+    var adv = document.getElementById('adv'); if (adv) adv.open = true;
+  }
+})();
+</script>
+</body>
+</html>
