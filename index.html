@@ -150,6 +150,20 @@
   }
   .reset:hover{color:var(--ink);border-color:var(--muted);}
 
+  /* 다음 단계 — 다듬기 안내 */
+  .next{margin-top:20px;padding-top:18px;border-top:1px dashed var(--line);}
+  .next-title{font-weight:700;font-size:15px;color:var(--accent-ink);margin-bottom:6px;}
+  .next-desc{font-size:13.5px;color:var(--ink);margin:0 0 10px;}
+  .how{margin:0 0 14px;padding-left:20px;font-size:13.5px;color:var(--ink);}
+  .how li{margin:3px 0;}
+  .copy{
+    background:#fff;color:var(--accent-ink);border:1.5px solid var(--accent);
+    border-radius:10px;padding:11px 18px;font-size:14.5px;font-weight:600;
+    font-family:inherit;cursor:pointer;
+  }
+  .copy:hover{background:var(--accent-soft);}
+  .copied{display:inline-block;margin-left:10px;font-size:13px;color:var(--accent);font-weight:600;}
+
   footer{margin-top:34px;font-size:12.5px;color:var(--muted);line-height:1.7;}
   footer b{color:var(--ink);font-weight:600;}
 
@@ -220,6 +234,38 @@
   //  큰따옴표(곧은/둥근/전각), 작은따옴표(둥근/전각), 낫표「」『』, 화살괄호〈〉《》 포함
   var QUOTE_PAT = /[\u0022\u201C\u201D\u201E\u201F\u301D\u301E\uFF02\u2018\u2019\u201A\u201B\uFF07\u300C\u300D\u300E\u300F\u3008\u3009\u300A\u300B]/g;
   function normalizeQuotes(s){ return String(s).replace(QUOTE_PAT, "'"); }
+
+  // 어떤 AI에든 붙여넣어 쓰는 '세특 다듬기' 지시문 (세특 스킬의 판단 규칙만 추림)
+  var PROMPT_SETTEUK = [
+    "아래 표는 학생 활동 자료에서 괄호·꺾쇠 안내문구를 이미 제거하고 따옴표를 정리한 것입니다.",
+    "이 내용을 바탕으로, 학교생활기록부 '교과 세부능력 및 특기사항(세특)'에 들어갈 문장으로 학생별 한 문단씩 다듬어 주세요.",
+    "",
+    "[가장 중요한 원칙]",
+    "1. 사실을 지어내지 마세요. 활동명·제안 내용·주제·자료(도서·기사) 제목·진로 분야 등 학생이 쓴 사실은 바꾸거나 새로 추가하지 마세요. 내용이 부실하면 부실한 대로 두고 억지로 살을 붙이지 마세요.",
+    "2. 학생이 쓴 내용은 한 문장도 빠뜨리지 말고 보존하세요.",
+    "3. 빈 칸이거나 내용이 거의 없는 학생은 무리하게 채우지 말고 '확인 필요'라고 표시하세요.",
+    "",
+    "[문체 — 교사 관찰자 시점]",
+    "- 교사가 학생을 관찰·평가하는 서술로 쓰세요. 종결은 '~함', '~음'을 쓰고, '~하는 모습이 인상적임', '~능력을 보여줌', '~한 점이 특히 돋보임', '~태도가 우수함' 같은 평가 표현을 자연스럽게 사용하세요.",
+    "- '나는/내가' 같은 1인칭은 모두 제3자 관찰 서술로 바꾸세요. (예: \"내가 어렵다고 느꼈다\" → \"어려움을 느꼈으나 …하는 모습을 보임\")",
+    "- 반복되는 어미·연결만 다듬고, 내용·사실은 그대로 두세요.",
+    "",
+    "[외국어·인용 표현이 있을 때만 적용 — 없으면 이 항목은 무시]",
+    "- 영어 등 외국어 문장이 있으면, 문법·철자 오류와 어색한 어휘는 의미를 바꾸지 않는 선에서 고등학생 수준으로 자연스럽게 교정하세요. (예: a essential → an essential, streotype → stereotype, users autonomy → users' autonomy)",
+    "- 단, 학생이 보여주려 한 어법 구조(수동태·관계대명사·가정법·비교급 등)는 그대로 유지하세요. 그 구조 자체가 평가 대상이므로, 오류만 고치고 구조를 바꾸지 마세요. (수동태를 능동태로, 가정법을 직설법으로 바꾸면 안 됨.) 새 문장으로 재작성하지 말고 '오류 수정' 수준에 머무세요.",
+    "- 외국어·인용문이 너무 깨져 뜻을 추정조차 할 수 없으면 임의로 고치지 말고 원문을 둔 채 '확인 필요'로 표시하세요.",
+    "- 국어·사회 등 외국어가 없는 과목은 이 항목을 적용하지 마세요.",
+    "",
+    "[글자 수]",
+    "- 교과 세특은 보통 1500바이트(나이스 EUC-KR 기준: 한글 2바이트, 영문·숫자·공백 1바이트) 이내입니다.",
+    "- 다듬은 문단이 1500바이트를 넘을 것 같으면 '⚠ 1500바이트 초과 가능 — 줄일 부분 검토 필요'라고 표시만 하고, 임의로 잘라내지 마세요. 어디를 줄일지는 사용자가 판단합니다.",
+    "",
+    "[출력 형식]",
+    "다음 5개 열로 정리해 주세요 — 순번 / 이름 / 세특(다듬은 문단) / 바이트수(EUC-KR 기준) / 확인필요(메모, 없으면 빈칸). 원본 표의 학생 순서를 그대로 유지하세요.",
+    "- 1순위: 위 내용을 다운로드 가능한 엑셀(.xlsx) 파일로 만들어 주세요.",
+    "- 만약 파일을 만들 수 없는 경우: 엑셀에 그대로 붙여넣을 수 있도록, 칸을 탭(Tab)으로 구분한 표 형태로 보여 주세요. (각 셀은 탭으로, 각 학생은 줄바꿈으로 구분)",
+    "- 바이트수는 한글 2바이트, 영문·숫자·공백 1바이트로 계산하고, 1500바이트를 넘으면 확인필요 칸에 '⚠ 1500바이트 초과'라고 적되 문장을 임의로 자르지 마세요."
+  ].join("\n");
 
   var drop = document.getElementById('drop');
   var fileInput = document.getElementById('fileInput');
@@ -386,6 +432,14 @@
 
     html += '<div><button class="download" id="dlAgain">다시 내려받기</button>';
     html += '<button class="reset" id="resetBtn">다른 파일 올리기</button></div>';
+
+    html += '<div class="next">';
+    html += '<div class="next-title">다음 단계 — 문장 다듬기 (AI)</div>';
+    html += '<p class="next-desc">부호·따옴표 정리는 끝났어요. 맞춤법을 고치고 문맥을 자연스럽게 잇는 <b>세특 문장 다듬기</b>는 AI가 해줍니다. 아래 순서대로만 하면 돼요.</p>';
+    html += '<ol class="how"><li><b>지시문 복사</b> 버튼 누르기</li><li>쓰시는 AI(Claude·ChatGPT·Gemini 등)에 붙여넣고, <b>방금 받은 엑셀 파일도 함께 올리기</b></li><li>다듬어진 세특 문장 받기</li></ol>';
+    html += '<button class="copy" id="copyPrompt">세특 다듬기 지시문 복사</button>';
+    html += '<span class="copied" id="copied"></span>';
+    html += '</div>';
     html += '</div>';
     result.className = 'result show';
     result.innerHTML = html;
@@ -400,6 +454,26 @@
       result.className = 'result';
       result.innerHTML = '';
     });
+    var copyBtn = document.getElementById('copyPrompt');
+    if (copyBtn){
+      copyBtn.addEventListener('click', function(){
+        var done = function(){
+          var c = document.getElementById('copied');
+          if (c){ c.textContent = '✓ 복사됐어요. AI에 붙여넣으세요'; }
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(PROMPT_SETTEUK).then(done, function(){ fallbackCopy(PROMPT_SETTEUK); done(); });
+        } else { fallbackCopy(PROMPT_SETTEUK); done(); }
+      });
+    }
+  }
+
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
   }
 
   function showColumnError(nameT, contentT, nameOk, contentOk, found){
