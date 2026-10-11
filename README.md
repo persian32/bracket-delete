@@ -1,5 +1,18 @@
 # 생기부 괄호·부호 제거기 (bracket-delete)
 
+**▶ Live site / 바로 열기:** https://persian32.github.io/bracket-delete/ (in Korean)
+
+**English summary**
+
+- **What it does:** Korean teachers write student records from spreadsheets in which every student's answer begins with the same guide text in angle brackets. This tool removes that guide text and makes all quotation marks the same, then gives back a clean spreadsheet.
+- **What it does not do:** It never changes the words students wrote. Rewriting is left to the teacher and the teacher's own AI; the tool can copy a ready-made instruction for that step.
+- **Privacy:** The file is processed in the browser and is never uploaded.
+- **My role:** I found the problem in my own work and decided what the tool should and should not do. The code was written with AI coding tools (Claude Code).
+
+---
+
+**한국어 설명**
+
 학교생활기록부(생기부) 학생 활동 엑셀에서 **모든 학생에게 공통으로 붙는 괄호·꺾쇠 ＜ ＞ 안내문구를 제거**하고, 글 속의 **모든 따옴표를 작은따옴표( ' )로 통일**하는 무료 웹 도구입니다.
 
 👉 **바로 사용하기: https://persian32.github.io/bracket-delete/**
